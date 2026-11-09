@@ -2,7 +2,7 @@
 // Copyright Celeritas contributors: see top-level COPYRIGHT file for details
 // SPDX-License-Identifier: (Apache-2.0 OR MIT)
 //---------------------------------------------------------------------------//
-//! \file orange/surf/detail/TPMSDefinition.hh
+//! \file orange/surf/detail/MarchingCubes.hh
 //---------------------------------------------------------------------------//
 #pragma once
 
@@ -43,14 +43,8 @@ class MarchingCubes
     const real_type length_x_, length_y_, length_z_;
     const real_type step_x_, step_y_, step_z_;
 
-    size_type num_triangles_ = 0;
-
     real_type(* func_)(const Real3&);
     Real3(* grad_)(const Real3&);
-
-    CollectionBuilder<Triangle>* triangle_builder_;
-    CollectionBuilder<Real3>* vert_builder_;
-    CollectionBuilder<Real3>* normal_builder_;
 
     std::vector<Triangle> triangles_;
     std::vector<Real3> verts_;
@@ -59,9 +53,9 @@ class MarchingCubes
     void compute_vertex_vals();
     void compute_intersection_points();
 
-    real_type get_data(size_t i, size_t j, size_t k) { return vertex_vals_.at(i + j*pts_x_ + k*pts_x_*pts_y_); }
-
     void process_cube(Array<real_type, 8> cube, int lut_entry, int i, int j, int k);
+
+    real_type get_data(size_t i, size_t j, size_t k) { return vertex_vals_.at(i + j*pts_x_ + k*pts_x_*pts_y_); }
 
     inline Real3 index_to_coord(int i, int j, int k) { return {i * step_x_, j * step_y_, k * step_z_}; }
 
@@ -73,10 +67,10 @@ class MarchingCubes
     inline int get_y_vert(int i, int j, int k) { return y_verts_.at(i + j*pts_x_ + k*pts_x_*pts_y_); }
     inline int get_z_vert(int i, int j, int k) { return z_verts_.at(i + j*pts_x_ + k*pts_x_*pts_y_); }
 
-    inline size_type add_x_vertex(Array<real_type, 8> cube, int i, int j, int k);
-    inline size_type add_y_vertex(Array<real_type, 8> cube, int i, int j, int k);
-    inline size_type add_z_vertex(Array<real_type, 8> cube, int i, int j, int k);
-    inline size_type add_c_vertex(Array<real_type, 8>, int, int, int);
+    inline int add_x_vertex(Array<real_type, 8> cube, int i, int j, int k);
+    inline int add_y_vertex(Array<real_type, 8> cube, int i, int j, int k);
+    inline int add_z_vertex(Array<real_type, 8> cube, int i, int j, int k);
+    inline int add_c_vertex(Array<real_type, 8> cube, int i, int j, int k);
 
     void add_triangle(const char* trig, char n, int i, int j, int k, int v12 = -1);
 

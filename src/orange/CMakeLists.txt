@@ -84,6 +84,7 @@ list(APPEND SOURCES
   surf/SurfaceSimplifier.cc
   surf/Toroid.cc
   surf/VariantSurface.cc
+  surf/detail/MarchingCubesMeshGenerator.cc
   surf/detail/SurfaceTransformer.cc
   surf/detail/SurfaceTranslator.cc
   transform/SignedPermutation.cc

@@ -133,6 +133,31 @@ struct TPMSParams
     T3 dXph, dYph, dZph;
 };
 
+class SchwarzSurface
+{
+  public:
+    static inline real_type func(Real3 point, real_type period)
+    {
+        real_type a = 2 * pi / period;
+        return std::cos(a * point[0])
+            + std::cos(a * point[1])
+            + std::cos(a + point[2]);
+    }
+
+    static inline Real3 grad(Real3 point, real_type period)
+    {
+        real_type a = 2 * pi / period;
+        return {
+            -a * std::sin(a * point[0]),
+            -a * std::sin(a * point[1]),
+            -a * std::sin(a * point[2])
+        };
+    }
+
+  private:
+    real_type a_;
+};
+
 class SchwarzDefinition
 {
   public:
@@ -157,7 +182,7 @@ class SchwarzDefinition
             + std::cos(a_ + point[2]);
     }
 
-    CELER_FUNCTION inline Real3 grad_cartesian(const Real3& point) const
+    CELER_FUNCTION Real3 grad_cartesian(const Real3& point) const
     {
         return {
             -a_ * std::sin(a_ * point[0]),
@@ -223,6 +248,26 @@ class SchwarzDefinition
         p_eval[0] = params.cx + params.cy + params.cz;
         p_eval[1] = p_jacobian[1];
         p_eval[2] = p_jacobian[2];
+    }
+
+    static inline CELER_FUNCTION real_type gen_func(const Real3& point)
+    {
+        const real_type x = point[0];
+        const real_type y = point[1];
+        const real_type z = point[2];
+        return std::cos(x) + std::cos(y) + std::cos(z);
+    }
+
+    static inline CELER_FUNCTION Real3 grad(const Real3& point)
+    {
+        const real_type x = point[0];
+        const real_type y = point[1];
+        const real_type z = point[2];
+        return {
+            -std::sin(x),
+            -std::sin(y),
+            -std::sin(z)
+        };
     }
 
   private:
@@ -395,6 +440,28 @@ class GyroidDefinition
             + params.sz*params.cx;
         p_eval[1] = p_jacobian[1];
         p_eval[2] = p_jacobian[2];
+    }
+
+    static inline CELER_FUNCTION real_type gen_func(const Real3& point)
+    {
+        const real_type x = point[0];
+        const real_type y = point[1];
+        const real_type z = point[2];
+        return std::sin(x) * std::cos(y) +
+            std::sin(y) * std::cos(z) +
+            std::sin(z) * std::cos(x);
+    }
+
+    static inline CELER_FUNCTION Real3 grad(const Real3& point)
+    {
+        const real_type x = point[0];
+        const real_type y = point[1];
+        const real_type z = point[2];
+        return {
+            std::cos(x) * std::cos(y) - std::sin(z) * std::sin(x),
+            std::cos(y) * std::cos(z) - std::sin(x) * std::sin(y),
+            std::cos(z) * std::cos(x) - std::sin(y) * std::sin(z)
+        };
     }
 
   private:

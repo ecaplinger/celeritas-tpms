@@ -2,7 +2,7 @@
 // Copyright Celeritas contributors: see top-level COPYRIGHT file for details
 // SPDX-License-Identifier: (Apache-2.0 OR MIT)
 //---------------------------------------------------------------------------//
-//! \file orange/detail/BvhBuilder.cc
+//! \file orange/surf/detail/MarchingCubes.cc
 //---------------------------------------------------------------------------//
 #include "MarchingCubes.hh"
 
@@ -15,15 +15,16 @@ namespace celeritas
 {
 
 template<MemSpace M>
-size_type MarchingCubes<M>::add_x_vertex(Array<real_type, 8> cube, int i, int j, int k)
+int MarchingCubes<M>::add_x_vertex(Array<real_type, 8> cube, int i, int j, int k)
 {
     Real3 coord = index_to_coord(i, j, k);
 
     real_type u = cube[0] / (cube[0] - cube[1]);
-    coord[0] += u;
+    coord[0] += u * step_x_;
 
-    size_type r = verts_.size();
-
+    CELER_VALIDATE(verts_.size() <= INT32_MAX,
+            << "MarchingCubes only supports 2**31 vertices");
+    int r = verts_.size();
     verts_.push_back(coord);
 
     Real3 normal = grad_(coord);
@@ -34,14 +35,16 @@ size_type MarchingCubes<M>::add_x_vertex(Array<real_type, 8> cube, int i, int j,
 }
 
 template<MemSpace M>
-size_type MarchingCubes<M>::add_y_vertex(Array<real_type, 8> cube, int i, int j, int k)
+int MarchingCubes<M>::add_y_vertex(Array<real_type, 8> cube, int i, int j, int k)
 {
     Real3 coord = index_to_coord(i, j, k);
 
     real_type u = cube[0] / (cube[0] - cube[3]);
-    coord[1] += u;
+    coord[1] += u * step_y_;
 
-    size_type r = verts_.size();
+    CELER_VALIDATE(verts_.size() <= INT32_MAX,
+            << "MarchingCubes only supports 2**31 vertices");
+    int r = verts_.size();
 
     verts_.push_back(coord);
 
@@ -53,14 +56,16 @@ size_type MarchingCubes<M>::add_y_vertex(Array<real_type, 8> cube, int i, int j,
 }
 
 template<MemSpace M>
-size_type MarchingCubes<M>::add_z_vertex(Array<real_type, 8> cube, int i, int j, int k)
+int MarchingCubes<M>::add_z_vertex(Array<real_type, 8> cube, int i, int j, int k)
 {
     Real3 coord = index_to_coord(i, j, k);
 
     real_type u = cube[0] / (cube[0] - cube[4]);
-    coord[2] += u;
+    coord[2] += u * step_z_;
 
-    size_type r = verts_.size();
+    CELER_VALIDATE(verts_.size() <= INT32_MAX,
+            << "MarchingCubes only supports 2**31 vertices");
+    int r = verts_.size();
 
     verts_.push_back(coord);
 
@@ -72,10 +77,13 @@ size_type MarchingCubes<M>::add_z_vertex(Array<real_type, 8> cube, int i, int j,
 }
 
 template<MemSpace M>
-size_type MarchingCubes<M>::add_c_vertex(Array<real_type, 8> cube, int i, int j, int k)
+int MarchingCubes<M>::add_c_vertex(Array<real_type, 8> cube, int i, int j, int k)
 {
     real_type u = 0;
-    size_type r = verts_.size();
+
+    CELER_VALIDATE(verts_.size() <= INT32_MAX,
+            << "MarchingCubes only supports 2**31 vertices");
+    int r = verts_.size();
 
     Real3 vertex{0, 0, 0};
 
@@ -137,16 +145,16 @@ MarchingCubes<M>::MarchingCubes(real_type(* func)(const Real3&),
     , pts_x_{voxels_x + 1}
     , pts_y_{voxels_y + 1}
     , pts_z_{voxels_z + 1}
-    , x_verts_(length_x * length_y * length_z, -1)
-    , y_verts_(length_x * length_y * length_z, -1)
-    , z_verts_(length_x * length_y * length_z, -1)
+    , x_verts_(pts_x_ * pts_y_ * pts_z_, -1)
+    , y_verts_(pts_x_ * pts_y_ * pts_z_, -1)
+    , z_verts_(pts_x_ * pts_y_ * pts_z_, -1)
 {
 }
 
 template<MemSpace M>
 void MarchingCubes<M>::compute_vertex_vals()
 {
-    vertex_vals_.reserve(pts_x_ * pts_y_ * pts_z_);
+    vertex_vals_.resize(pts_x_ * pts_y_ * pts_z_);
 
     for (int k = 0; k < pts_z_; k++)
         for (int j = 0; j < pts_y_; j++)
@@ -208,9 +216,13 @@ size_type MarchingCubes<M>::operator()(DirectionalMeshData<M>& data)
                 int lut_entry = 0;
                 for (int p = 0; p < 8; p++)
                 {
-                    cube[p] = vertex_vals_[i + (p&1)
+                    cube[p] = vertex_vals_[i + ((p^(p>>1)&1))
                         + (j + ((p>>1)&1))*(voxels_x_+1)
                         + (k + ((p>>2)&1))*(voxels_y_+1)*(voxels_x_+1)];
+
+                    // clamp to epsilon to prevent 0 denominator
+                    if (fabs(cube[p]) < FLT_EPSILON) cube[p] = FLT_EPSILON;
+
                     if (cube[p] > 0) lut_entry += 1 << p;
                 }
 
@@ -247,6 +259,7 @@ void MarchingCubes<M>::process_cube(Array<real_type, 8> cube, int lut_entry, int
 
         case 2:
             add_triangle(tiling2[config], 2, i, j, k);
+            break;
 
         case 3:
             if (test_face(test3[config], cube))
@@ -279,6 +292,7 @@ void MarchingCubes<M>::process_cube(Array<real_type, 8> cube, int lut_entry, int
                     add_triangle(tiling6_1_2[config], 9, i, j, k, v12);
                 }
             }
+            break;
 
         case 7:
             if (test_face(test7[config][0], cube)) subconfig += 1;
@@ -590,10 +604,7 @@ void MarchingCubes<M>::add_triangle(const char* trig, char n, int i, int j, int 
                 break;
         }
 
-        if (tv[t%3] == -1)
-        {
-            printf("Marching Cubes: invalid triangle %d\n", triangles_.size());
-        }
+        CELER_VALIDATE(tv[t%3] != -1, << "invalid triangle at idx " << triangles_.size());
 
         if (t%3 == 2)
         {
@@ -606,6 +617,9 @@ template<MemSpace M>
 bool MarchingCubes<M>::test_face(signed char face, Array<real_type, 8> cube)
 {
     real_type A, B, C, D;
+
+    if (std::fabs(A*C - B*D) < FLT_EPSILON)
+        return face >= 0;
 
     switch (face)
     {
@@ -622,7 +636,8 @@ bool MarchingCubes<M>::test_face(signed char face, Array<real_type, 8> cube)
         case -6: case 6:
             A = cube[4]; B = cube[7]; C = cube[6]; D = cube[5]; break;
         default:
-            printf( "Invalid face code %d\n", face ); A = B = C = D = 0;
+            CELER_VALIDATE(false,
+                    << "invalid face code " << face);
     };
 
     return face * A * (A*C - B*D) >= 0;
@@ -663,11 +678,12 @@ bool MarchingCubes<M>::test_interior(signed char interior,
                 case 7: edge = test7[config][4]; break;
                 case 12: edge = test12[config][3]; break;
                 case 13: edge = tiling13_5_1[config][subconfig][0]; break;
+                default: CELER_ASSERT_UNREACHABLE();
             };
 
             switch (edge)
             {
-                case 0 :
+                case 0:
                     t = cube[0] / (cube[0] - cube[1]);
                     At = 0;
                     Bt = cube[3] + (cube[2] - cube[3]) * t;
@@ -751,8 +767,15 @@ bool MarchingCubes<M>::test_interior(signed char interior,
                     Ct = cube[1] + (cube[5] - cube[1]) * t;
                     Dt = cube[0] + (cube[4] - cube[0]) * t;
                     break;
-                default : printf("Invalid edge %d\n", edge); break;
+                default:
+                    CELER_VALIDATE(false,
+                            << "invalid edge " << edge <<
+                            ", cube case " << cube_case);
+                    break;
             }
+
+        default:
+            CELER_ASSERT_UNREACHABLE();
     }
 
     if (At >= 0) test += 1;
@@ -772,18 +795,25 @@ bool MarchingCubes<M>::test_interior(signed char interior,
         case 9:
         case 12:
             return interior > 0;
+
         case 5:
             if (At * Ct - Bt * Dt <  FLT_EPSILON)
                 return interior > 0;
+
         case 10:
             if (At * Ct - Bt * Dt >= FLT_EPSILON)
                 return interior > 0;
+
         case 7:
         case 11:
         case 13:
         case 14:
         case 15:
-            return interior < 0 ;
+            return interior < 0;
+
+        default:
+            CELER_VALIDATE(false,
+                    << "invalid interior test " << test);
     }
 
     return interior < 0;
