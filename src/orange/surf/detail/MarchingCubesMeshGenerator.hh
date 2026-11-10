@@ -11,8 +11,6 @@
 #include "corecel/Types.hh"
 #include "corecel/cont/Array.hh"
 
-#include "MeshData.hh"
-
 namespace celeritas
 {
 namespace detail
@@ -34,16 +32,18 @@ class MarchingCubesMeshGenerator
     using GradientFunctionT = Real3 (*)(Real3, real_type);
     using VerticesT = std::vector<Real3>;
     using NormalsT = std::vector<Real3>;
-    using TrianglesT = std::vector<Array<int, 3>>;
+    using TriangleT = Array<int, 3>;
+    using TrianglesT = std::vector<TriangleT>;
     //!@}
 
     //! Generator configuration
     struct Input
     {
-      Array<int, 3> voxels{};
-      Array<real_type, 3> length{};
+      Array<int, 3> voxels;
+      Real3 length;
+      Real3 offset;
       real_type isovalue = 0;
-      real_type period = 1.0;
+      real_type param = 1.0;
     };
 
     //! Algorithm output
@@ -100,6 +100,7 @@ class MarchingCubesMeshGenerator
     const int voxels_x_, voxels_y_, voxels_z_;
     const int pts_x_, pts_y_, pts_z_;
     const real_type length_x_, length_y_, length_z_;
+    const real_type offset_x_, offset_y_, offset_z_;
     const real_type step_x_, step_y_, step_z_;
     const real_type iso_;
     const real_type a_;
@@ -110,7 +111,7 @@ class MarchingCubesMeshGenerator
     GeneratingFunctionT func_;
     GradientFunctionT grad_;
 
-    std::vector<Triangle> triangles_;
+    std::vector<TriangleT> triangles_;
     std::vector<Real3> verts_;
     std::vector<Real3> normals_;
 };

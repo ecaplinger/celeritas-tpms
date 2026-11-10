@@ -7,6 +7,8 @@
 #include "MarchingCubesMeshGenerator.hh"
 
 #include <cfloat>
+// TODO: delete this
+#include <iostream>
 
 #include "corecel/Constants.hh"
 #include "corecel/math/ArrayUtils.hh"
@@ -43,8 +45,11 @@ MarchingCubesMeshGenerator::MarchingCubesMeshGenerator(GeneratingFunctionT func,
     , step_x_(input.length[0] / input.voxels[0])
     , step_y_(input.length[1] / input.voxels[1])
     , step_z_(input.length[2] / input.voxels[2])
+    , offset_x_(input.offset[0])
+    , offset_y_(input.offset[1])
+    , offset_z_(input.offset[2])
     , iso_(input.isovalue)
-    , a_(2 * pi / input.period)
+    , a_(input.param)
 {
     CELER_VALIDATE(func, << "generating function must be non-null");
     CELER_VALIDATE(grad, << "gradient function must be non-null");
@@ -76,6 +81,8 @@ MarchingCubesMeshGenerator::Output MarchingCubesMeshGenerator::operator()()
     compute_vertex_vals();
     compute_intersection_points();
 
+    std::cout << "verts: " << verts_.size() << std::endl;
+
     for (int i = 0; i < voxels_x_; i++)
         for (int j = 0; j < voxels_y_; j++)
             for (int k = 0; k < voxels_z_; k++)
@@ -85,14 +92,14 @@ MarchingCubesMeshGenerator::Output MarchingCubesMeshGenerator::operator()()
                 for (int p = 0; p < 8; p++)
                 {
                     cube[p] = get_data(
-                        i + ((p^(p>>1)&1)),
+                        i + ((p^(p>>1))&1),
                         j + ((p>>1)&1),
                         k + ((p>>2)&1)) - iso_;
 
                     // clamp to epsilon to prevent 0 denominator
-                    if (std::fabs(cube[p]) < FLT_EPSILON) cube[p] = FLT_EPSILON;
+                    if (std::fabs(cube[p]) < FLT_EPSILON) cube[p] = cube[p] > 0.0 ? FLT_EPSILON : -FLT_EPSILON;
 
-                    if (cube[p] > 0) lut_entry += 1 << p;
+                    if (cube[p] > 0.0) lut_entry += 1 << p;
                 }
 
                 process_cube(cube, lut_entry, i, j, k);
@@ -103,6 +110,8 @@ MarchingCubesMeshGenerator::Output MarchingCubesMeshGenerator::operator()()
     ret_val.global_verts = std::move(verts_);
     ret_val.global_normals = std::move(normals_);
     ret_val.triangles = std::move(triangles_);
+
+    return ret_val;
 }
 
 //---------------------------------------------------------------------------//
@@ -149,17 +158,29 @@ void MarchingCubesMeshGenerator::compute_intersection_points()
                 else
                     cube[4] = cube[0];
 
-                if (cube[0] < 0)
+                //std::cout << "compute_intersection_points: " <<
+                //    "iso = " << iso_ <<
+                //    ", cube[0] = " << cube[0] <<
+                //    ", cube[1] = " << cube[1] <<
+                //    ", cube[3] = " << cube[3] <<
+                //    ", cube[4] = " << cube[4] << std::endl;
+                //
+                if (std::fabs(cube[0]) < FLT_EPSILON) cube[0] = cube[0] > 0.0 ? FLT_EPSILON : -FLT_EPSILON;
+                if (std::fabs(cube[1]) < FLT_EPSILON) cube[1] = cube[1] > 0.0 ? FLT_EPSILON : -FLT_EPSILON;
+                if (std::fabs(cube[3]) < FLT_EPSILON) cube[3] = cube[3] > 0.0 ? FLT_EPSILON : -FLT_EPSILON;
+                if (std::fabs(cube[4]) < FLT_EPSILON) cube[4] = cube[4] > 0.0 ? FLT_EPSILON : -FLT_EPSILON;
+
+                if (cube[0] < 0.0)
                 {
-                    if (cube[1] > 0) set_x_vert(add_x_vertex(cube, i, j, k), i, j, k);
-                    if (cube[3] > 0) set_y_vert(add_y_vertex(cube, i, j, k), i, j, k);
-                    if (cube[4] > 0) set_z_vert(add_z_vertex(cube, i, j, k), i, j, k);
+                    if (cube[1] > 0.0) set_x_vert(add_x_vertex(cube, i, j, k), i, j, k);
+                    if (cube[3] > 0.0) set_y_vert(add_y_vertex(cube, i, j, k), i, j, k);
+                    if (cube[4] > 0.0) set_z_vert(add_z_vertex(cube, i, j, k), i, j, k);
                 }
                 else
                 {
-                    if (cube[1] < 0) set_x_vert(add_x_vertex(cube, i, j, k), i, j, k);
-                    if (cube[3] < 0) set_y_vert(add_y_vertex(cube, i, j, k), i, j, k);
-                    if (cube[4] < 0) set_z_vert(add_z_vertex(cube, i, j, k), i, j, k);
+                    if (cube[1] < 0.0) set_x_vert(add_x_vertex(cube, i, j, k), i, j, k);
+                    if (cube[3] < 0.0) set_y_vert(add_y_vertex(cube, i, j, k), i, j, k);
+                    if (cube[4] < 0.0) set_z_vert(add_z_vertex(cube, i, j, k), i, j, k);
                 }
             }
 }
@@ -502,7 +523,7 @@ void MarchingCubesMeshGenerator::process_cube(Array<real_type, 8> const& cube,
 void MarchingCubesMeshGenerator::add_triangle(const char* trig, char n,
         int i, int j, int k, int v12)
 {
-    int tv[3] = {-1, -1, -1};
+    TriangleT tv{-1, -1, -1};
 
     for (int t = 0; t < 3*n; t++)
     {
@@ -543,7 +564,7 @@ void MarchingCubesMeshGenerator::add_triangle(const char* trig, char n,
 
         if (t%3 == 2)
         {
-            triangles_.push_back(Triangle(tv));
+            triangles_.push_back(tv);
         }
     }
 }
@@ -878,7 +899,7 @@ real_type MarchingCubesMeshGenerator::get_data(int i, int j, int k) const
 //---------------------------------------------------------------------------//
 Real3 MarchingCubesMeshGenerator::index_to_coord(int i, int j, int k) const
 {
-    return {i * step_x_, j * step_y_, k * step_z_};
+    return {i * step_x_ + offset_x_, j * step_y_ + offset_y_, k * step_z_ + offset_z_};
 }
 
 //---------------------------------------------------------------------------//

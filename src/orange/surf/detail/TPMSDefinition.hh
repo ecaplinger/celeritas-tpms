@@ -133,7 +133,7 @@ struct TPMSParams
     T3 dXph, dYph, dZph;
 };
 
-class SchwarzSurface
+class SchwarzIsosurface
 {
   public:
     static inline real_type func(Real3 point, real_type period)
@@ -141,7 +141,7 @@ class SchwarzSurface
         real_type a = 2 * pi / period;
         return std::cos(a * point[0])
             + std::cos(a * point[1])
-            + std::cos(a + point[2]);
+            + std::cos(a * point[2]);
     }
 
     static inline Real3 grad(Real3 point, real_type period)
