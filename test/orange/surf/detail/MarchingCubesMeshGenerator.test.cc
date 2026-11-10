@@ -29,10 +29,35 @@ namespace detail
 
 using constants::pi;
 
-namespace {
-// algorithm description:
-// for each triangle in expected, find a topologically matching triangle in
-// result.
+//---------------------------------------------------------------------------//
+
+/*!
+ * Basic isosurface definition of a sphere.
+ */
+class SphereIsosurface
+{
+  public:
+    static inline CELER_FUNCTION real_type func(Real3 point, real_type radius)
+    {
+        return point[0]*point[0] + point[1]*point[1] + point[2]*point[2] - radius*radius;
+    }
+
+    static inline CELER_FUNCTION Real3 grad(Real3 point, real_type radius)
+    {
+        (void) radius;
+
+        return {
+            2 * point[0],
+            2 * point[1],
+            2 * point[2]
+        };
+    }
+};
+
+/*!
+ * For each triangle in expected, find a topologically equivalent triangle in
+ * result.
+ */
 void expect_triangles_eq(
         const ::celeritas::detail::MarchingCubesMeshGenerator::Output& expected,
         const ::celeritas::detail::MarchingCubesMeshGenerator::Output& result)
@@ -56,7 +81,7 @@ void expect_triangles_eq(
             // test all winding orders
             for (int w = 0; w < 3; w++)
             {
-                bool this_one = true;
+                bool local_found = true;
 
                 Real3 res_v1 = result.global_verts[result.triangles[j][w]];
                 Real3 res_v2 = result.global_verts[result.triangles[j][(w+1)%3]];
@@ -68,18 +93,18 @@ void expect_triangles_eq(
 
                 for (int d = 0; d < 3; d++)
                 {
-                    this_one = this_one && is_near(exp_v1[d], res_v1[d]);
-                    this_one = this_one && is_near(exp_v2[d], res_v2[d]);
-                    this_one = this_one && is_near(exp_v3[d], res_v3[d]);
+                    local_found = local_found && is_near(exp_v1[d], res_v1[d]);
+                    local_found = local_found && is_near(exp_v2[d], res_v2[d]);
+                    local_found = local_found && is_near(exp_v3[d], res_v3[d]);
 
-                    this_one = is_near(exp_n1[d], res_n1[d]);
-                    this_one = this_one && is_near(exp_n2[d], res_n2[d]);
-                    this_one = this_one && is_near(exp_n3[d], res_n3[d]);
+                    local_found = local_found && is_near(exp_n1[d], res_n1[d]);
+                    local_found = local_found && is_near(exp_n2[d], res_n2[d]);
+                    local_found = local_found && is_near(exp_n3[d], res_n3[d]);
 
-                    if (this_one) break;
+                    if (local_found) break;
                 }
 
-                found = found || this_one;
+                found = found || local_found;
 
                 if (found) break;
             }
@@ -93,33 +118,13 @@ void expect_triangles_eq(
         if (!found) break;
     }
 }
-}  // namespace
-
-//---------------------------------------------------------------------------//
-class SphereIsosurface
-{
-  public:
-    static inline CELER_FUNCTION real_type func(Real3 point, real_type radius)
-    {
-        return point[0]*point[0] + point[1]*point[1] + point[2]*point[2] - radius*radius;
-    }
-
-    static inline CELER_FUNCTION Real3 grad(Real3 point, real_type radius)
-    {
-        (void) radius;
-
-        return {
-            2 * point[0],
-            2 * point[1],
-            2 * point[2]
-        };
-    }
-};
 
 class MarchingCubesMeshGeneratorTest : public ::celeritas::test::Test
 {
   protected:
-    // load in reference results from JSON to compare against
+    /*!
+     * Load in reference results from JSON to compare against.
+     */
     void load_expected(std::string filename)
     {
         std::string filepath = test_data_path("orange", filename);
@@ -182,6 +187,7 @@ TEST_F(MarchingCubesMeshGeneratorTest, schwarz_p)
     EXPECT_EQ(expected_.global_normals.size(), result.global_normals.size());
     EXPECT_EQ(expected_.triangles.size(), result.triangles.size());
 
+    // Bidirectional comparison
     expect_triangles_eq(expected_, result);
     expect_triangles_eq(result, expected_);
 }
@@ -208,6 +214,7 @@ TEST_F(MarchingCubesMeshGeneratorTest, sphere)
     EXPECT_EQ(expected_.global_normals.size(), result.global_normals.size());
     EXPECT_EQ(expected_.triangles.size(), result.triangles.size());
 
+    // Bidirectional comparison
     expect_triangles_eq(expected_, result);
     expect_triangles_eq(result, expected_);
 }
