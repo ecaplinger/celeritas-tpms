@@ -84,6 +84,7 @@ list(APPEND SOURCES
   surf/SurfaceSimplifier.cc
   surf/Toroid.cc
   surf/VariantSurface.cc
+  surf/detail/MarchingCubesMeshGenerator.cc
   surf/detail/SurfaceTransformer.cc
   surf/detail/SurfaceTranslator.cc
   transform/SignedPermutation.cc
@@ -113,16 +114,6 @@ if(CELERITAS_USE_Geant4)
 endif()
 
 celeritas_polysource_append(SOURCES RaytraceImager)
-
-# GCC 15 at -O3 emits a spurious -Wmaybe-uninitialized from inlined
-# std::map moves of UnitInput when this file is batched with other sources.
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
-   AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 16)
-  set_source_files_properties(
-    OrangeInputIO.json.cc
-    PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON
-  )
-endif()
 
 #-----------------------------------------------------------------------------#
 # Create library

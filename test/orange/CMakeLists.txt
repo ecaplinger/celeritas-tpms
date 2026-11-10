@@ -65,9 +65,6 @@ celeritas_add_test(detail/OrientedBoundingZone.test.cc)
 # Logic utilities
 celeritas_add_test(detail/LogicUtils.test.cc)
 
-# Input options
-celeritas_add_test(inp/IO.test.cc LINK_LIBRARIES nlohmann_json::nlohmann_json)
-
 #-----------------------------------------------------------------------------#
 # Input construction
 celeritas_add_test(orangeinp/CsgObject.test.cc)
@@ -129,6 +126,8 @@ celeritas_add_test(surf/detail/InvoluteSolver.test.cc)
 celeritas_add_test(surf/detail/QuadraticSolver.test.cc)
 celeritas_add_test(surf/detail/SurfaceTransformer.test.cc)
 celeritas_add_test(surf/detail/SurfaceTranslator.test.cc)
+celeritas_add_test(surf/detail/MarchingCubesMeshGenerator.test.cc
+  LINK_LIBRARIES nlohmann_json::nlohmann_json)
 
 #-----------------------------------------------------------------------------#
 # Universe
