@@ -7,9 +7,6 @@
 #include "MarchingCubesMeshGenerator.hh"
 
 #include <cfloat>
-#include <fstream>
-// TODO: delete this
-#include <iostream>
 
 #include "corecel/Constants.hh"
 #include "corecel/math/ArrayUtils.hh"
