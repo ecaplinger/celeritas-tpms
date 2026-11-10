@@ -7,6 +7,7 @@
 #include "MarchingCubesMeshGenerator.hh"
 
 #include <cfloat>
+#include <fstream>
 // TODO: delete this
 #include <iostream>
 
@@ -49,7 +50,6 @@ MarchingCubesMeshGenerator::MarchingCubesMeshGenerator(GeneratingFunctionT func,
     , offset_y_(input.offset[1])
     , offset_z_(input.offset[2])
     , iso_(input.isovalue)
-    , a_(input.param)
 {
     CELER_VALIDATE(func, << "generating function must be non-null");
     CELER_VALIDATE(grad, << "gradient function must be non-null");
@@ -81,8 +81,6 @@ MarchingCubesMeshGenerator::Output MarchingCubesMeshGenerator::operator()()
     compute_vertex_vals();
     compute_intersection_points();
 
-    std::cout << "verts: " << verts_.size() << std::endl;
-
     for (int i = 0; i < voxels_x_; i++)
         for (int j = 0; j < voxels_y_; j++)
             for (int k = 0; k < voxels_z_; k++)
@@ -96,8 +94,9 @@ MarchingCubesMeshGenerator::Output MarchingCubesMeshGenerator::operator()()
                         j + ((p>>1)&1),
                         k + ((p>>2)&1)) - iso_;
 
-                    // clamp to epsilon to prevent 0 denominator
-                    if (std::fabs(cube[p]) < FLT_EPSILON) cube[p] = cube[p] > 0.0 ? FLT_EPSILON : -FLT_EPSILON;
+                    // clamp to signed epsilon to prevent 0 denominator
+                    if (std::fabs(cube[p]) < FLT_EPSILON) cube[p] =
+                        cube[p] > 0.0 ? FLT_EPSILON : -FLT_EPSILON;
 
                     if (cube[p] > 0.0) lut_entry += 1 << p;
                 }
@@ -126,7 +125,7 @@ void MarchingCubesMeshGenerator::compute_vertex_vals()
         for (int j = 0; j < pts_y_; j++)
             for (int i = 0; i < pts_x_; i++)
                 vertex_vals_[i + j*pts_x_ + k*pts_x_*pts_y_] =
-                    func_(index_to_coord(i, j, k), a_);
+                    func_(index_to_coord(i, j, k));
 }
 
 //---------------------------------------------------------------------------//
@@ -158,29 +157,32 @@ void MarchingCubesMeshGenerator::compute_intersection_points()
                 else
                     cube[4] = cube[0];
 
-                //std::cout << "compute_intersection_points: " <<
-                //    "iso = " << iso_ <<
-                //    ", cube[0] = " << cube[0] <<
-                //    ", cube[1] = " << cube[1] <<
-                //    ", cube[3] = " << cube[3] <<
-                //    ", cube[4] = " << cube[4] << std::endl;
-                //
-                if (std::fabs(cube[0]) < FLT_EPSILON) cube[0] = cube[0] > 0.0 ? FLT_EPSILON : -FLT_EPSILON;
-                if (std::fabs(cube[1]) < FLT_EPSILON) cube[1] = cube[1] > 0.0 ? FLT_EPSILON : -FLT_EPSILON;
-                if (std::fabs(cube[3]) < FLT_EPSILON) cube[3] = cube[3] > 0.0 ? FLT_EPSILON : -FLT_EPSILON;
-                if (std::fabs(cube[4]) < FLT_EPSILON) cube[4] = cube[4] > 0.0 ? FLT_EPSILON : -FLT_EPSILON;
+                if (std::fabs(cube[0]) < FLT_EPSILON) cube[0] =
+                    cube[0] > 0.0 ? FLT_EPSILON : -FLT_EPSILON;
+                if (std::fabs(cube[1]) < FLT_EPSILON) cube[1] =
+                    cube[1] > 0.0 ? FLT_EPSILON : -FLT_EPSILON;
+                if (std::fabs(cube[3]) < FLT_EPSILON) cube[3] =
+                    cube[3] > 0.0 ? FLT_EPSILON : -FLT_EPSILON;
+                if (std::fabs(cube[4]) < FLT_EPSILON) cube[4] =
+                    cube[4] > 0.0 ? FLT_EPSILON : -FLT_EPSILON;
 
                 if (cube[0] < 0.0)
                 {
-                    if (cube[1] > 0.0) set_x_vert(add_x_vertex(cube, i, j, k), i, j, k);
-                    if (cube[3] > 0.0) set_y_vert(add_y_vertex(cube, i, j, k), i, j, k);
-                    if (cube[4] > 0.0) set_z_vert(add_z_vertex(cube, i, j, k), i, j, k);
+                    if (cube[1] > 0.0) set_x_vert(
+                            add_x_vertex(cube, i, j, k), i, j, k);
+                    if (cube[3] > 0.0) set_y_vert(
+                            add_y_vertex(cube, i, j, k), i, j, k);
+                    if (cube[4] > 0.0) set_z_vert(
+                            add_z_vertex(cube, i, j, k), i, j, k);
                 }
                 else
                 {
-                    if (cube[1] < 0.0) set_x_vert(add_x_vertex(cube, i, j, k), i, j, k);
-                    if (cube[3] < 0.0) set_y_vert(add_y_vertex(cube, i, j, k), i, j, k);
-                    if (cube[4] < 0.0) set_z_vert(add_z_vertex(cube, i, j, k), i, j, k);
+                    if (cube[1] < 0.0) set_x_vert(
+                            add_x_vertex(cube, i, j, k), i, j, k);
+                    if (cube[3] < 0.0) set_y_vert(
+                            add_y_vertex(cube, i, j, k), i, j, k);
+                    if (cube[4] < 0.0) set_z_vert(
+                            add_z_vertex(cube, i, j, k), i, j, k);
                 }
             }
 }
@@ -583,7 +585,7 @@ int MarchingCubesMeshGenerator::add_x_vertex(Array<real_type, 8> const& cube,
     int r = verts_.size();
     verts_.push_back(coord);
 
-    Real3 normal = grad_(coord, a_);
+    Real3 normal = grad_(coord);
     normal = make_unit_vector(normal);
     normals_.push_back(normal);
 
@@ -605,7 +607,7 @@ int MarchingCubesMeshGenerator::add_y_vertex(Array<real_type, 8> const& cube,
 
     verts_.push_back(coord);
 
-    Real3 normal = grad_(coord, a_);
+    Real3 normal = grad_(coord);
     normal = make_unit_vector(normal);
     normals_.push_back(normal);
 
@@ -627,7 +629,7 @@ int MarchingCubesMeshGenerator::add_z_vertex(Array<real_type, 8> const& cube,
 
     verts_.push_back(coord);
 
-    Real3 normal = grad_(coord, a_);
+    Real3 normal = grad_(coord);
     normal = make_unit_vector(normal);
     normals_.push_back(normal);
 
@@ -635,6 +637,8 @@ int MarchingCubesMeshGenerator::add_z_vertex(Array<real_type, 8> const& cube,
 }
 
 //---------------------------------------------------------------------------//
+// NOTE: differs from the original Lewiner version; adopts the version used in
+// scikit-image instead
 int MarchingCubesMeshGenerator::add_c_vertex(Array<real_type, 8> const& cube,
         int i, int j, int k)
 {
@@ -644,39 +648,29 @@ int MarchingCubesMeshGenerator::add_c_vertex(Array<real_type, 8> const& cube,
             << "MarchingCubes only supports 2**31 vertices");
     int r = verts_.size();
 
-    Real3 vertex{0, 0, 0};
+    Real3 vertex = index_to_coord(i, j, k);
 
-    auto add_vert = [&] (int vid)
-    {
-        if (vid == -1) return;
+    real_type v0 = 1.0 / (FLT_EPSILON + std::fabs(cube[0]));
+    real_type v1 = 1.0 / (FLT_EPSILON + std::fabs(cube[1]));
+    real_type v2 = 1.0 / (FLT_EPSILON + std::fabs(cube[2]));
+    real_type v3 = 1.0 / (FLT_EPSILON + std::fabs(cube[3]));
+    real_type v4 = 1.0 / (FLT_EPSILON + std::fabs(cube[4]));
+    real_type v5 = 1.0 / (FLT_EPSILON + std::fabs(cube[5]));
+    real_type v6 = 1.0 / (FLT_EPSILON + std::fabs(cube[6]));
+    real_type v7 = 1.0 / (FLT_EPSILON + std::fabs(cube[7]));
 
-        u += 1;
-        const Real3& vx = verts_.at(vid);
-        vertex[0] += vx[0];
-        vertex[1] += vx[1];
-        vertex[2] += vx[2];
-    };
+    real_type fx = v1 + v2 + v5 + v6;
+    real_type fy = v2 + v3 + v6 + v7;
+    real_type fz = v4 + v5 + v6 + v7;
+    real_type ff = v0 + v1 + v2 + v3 + v4 + v5 + v6 + v7;
 
-    add_vert(get_x_vert(i, j, k));
-    add_vert(get_y_vert(i+1, j, k));
-    add_vert(get_x_vert(i, j+1, k));
-    add_vert(get_y_vert(i, j, k));
-    add_vert(get_x_vert(i, j, k+1));
-    add_vert(get_y_vert(i+1, j, k+1));
-    add_vert(get_x_vert(i, j+1, k+1));
-    add_vert(get_y_vert(i, j, k+1));
-    add_vert(get_z_vert(i, j, k));
-    add_vert(get_z_vert(i+1, j, k));
-    add_vert(get_z_vert(i+1, j+1, k));
-    add_vert(get_z_vert(i, j+1, k));
-
-    vertex[0] /= u;
-    vertex[1] /= u;
-    vertex[2] /= u;
+    vertex[0] += step_x_ * (fx / ff);
+    vertex[1] += step_y_ * (fy / ff);
+    vertex[2] += step_z_ * (fz / ff);
 
     verts_.push_back(vertex);
 
-    Real3 normal = grad_(vertex, a_);
+    Real3 normal = grad_(vertex);
     normal = make_unit_vector(normal);
     normals_.push_back(normal);
 

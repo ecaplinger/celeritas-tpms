@@ -28,8 +28,8 @@ class MarchingCubesMeshGenerator
   public:
     //!@{
     //! \name Type aliases
-    using GeneratingFunctionT = real_type (*)(Real3, real_type);
-    using GradientFunctionT = Real3 (*)(Real3, real_type);
+    using GeneratingFunctionT = real_type (*)(Real3);
+    using GradientFunctionT = Real3 (*)(Real3);
     using VerticesT = std::vector<Real3>;
     using NormalsT = std::vector<Real3>;
     using TriangleT = Array<int, 3>;
@@ -43,7 +43,6 @@ class MarchingCubesMeshGenerator
       Real3 length;
       Real3 offset;
       real_type isovalue = 0;
-      real_type param = 1.0;
     };
 
     //! Algorithm output
@@ -103,7 +102,6 @@ class MarchingCubesMeshGenerator
     const real_type offset_x_, offset_y_, offset_z_;
     const real_type step_x_, step_y_, step_z_;
     const real_type iso_;
-    const real_type a_;
 
     std::vector<real_type> vertex_vals_;
     std::vector<int> x_verts_, y_verts_, z_verts_;
@@ -114,6 +112,10 @@ class MarchingCubesMeshGenerator
     std::vector<TriangleT> triangles_;
     std::vector<Real3> verts_;
     std::vector<Real3> normals_;
+
+    //! Per-cube debug records
+    std::vector<std::string> dbg_lines_;
+    int dbg_cube_ = -1;
 };
 
 //---------------------------------------------------------------------------//
